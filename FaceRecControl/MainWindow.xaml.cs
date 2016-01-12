@@ -1,5 +1,7 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -20,9 +22,48 @@ namespace FaceRecControl
     /// </summary>
     public partial class MainWindow : Window
     {
+        Vector s;
         public MainWindow()
         {
+          
             InitializeComponent();
+        }
+        public ArrayList Flst
+        {
+            get;
+            set;
+        }
+        ArrayList GetAll(DirectoryInfo dir)//搜索文件夹中的文件
+        {
+            ArrayList FileList = new ArrayList();
+
+            FileInfo[] allFile = dir.GetFiles();
+            foreach (FileInfo fi in allFile)
+            {
+                FileList.Add(fi.Name);
+            }
+
+            DirectoryInfo[] allDir = dir.GetDirectories();
+            foreach (DirectoryInfo d in allDir)
+            {
+                GetAll(d);
+            }
+            return FileList;
+        }
+        public  void getDirFiles(string path)
+        {
+            DirectoryInfo d = new DirectoryInfo(path);
+            Flst = GetAll(d);
+        }
+
+
+        private void OpenDir_Click(object sender, RoutedEventArgs e)
+        {
+            getDirFiles(@"C:\Users\dell\Desktop\Pic");
+            for (int i = 0; i < Flst.Count; i++ )
+            {
+                Console.Write(Flst[i]);
+            }
         }
     }
 }

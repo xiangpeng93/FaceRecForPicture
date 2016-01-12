@@ -23,7 +23,7 @@
             </StackPanel>
             <DockPanel Grid.Row="1" Grid.Column="0" VerticalAlignment="Center" HorizontalAlignment="Right">
                 <Button Margin="10,10" Content="打开文件" FontSize="18"></Button>
-                <Button Margin="10,10" Content="打开目录" FontSize="18"></Button>
+                <Button Name="OpenDir" Margin="10,10" Content="打开目录" FontSize="18" Click="OpenDir_Click"></Button>
 
             </DockPanel>
             <Grid Grid.Column="0" Grid.Row="0">
@@ -40,7 +40,7 @@
                         <RowDefinition Height="8*"></RowDefinition>
                         <RowDefinition Height="*"></RowDefinition>
                     </Grid.RowDefinitions>
-                    <Image Source="test.png"></Image>
+                    <Image Name="Gray_image" Source="test.png"></Image>
                     <TextBlock  Grid.Row="1" Text="灰度图" HorizontalAlignment="Center"></TextBlock>
                 </Grid>
                 <Grid Grid.Column="1" Grid.Row="0" >
@@ -48,7 +48,7 @@
                         <RowDefinition Height="8*"></RowDefinition>
                         <RowDefinition Height="*"></RowDefinition>
                     </Grid.RowDefinitions>
-                    <Image Source="test.png"></Image>
+                    <Image Name="" Source="test.png"></Image>
                     <TextBlock  Grid.Row="1" Text="二值化" HorizontalAlignment="Center"></TextBlock>
                 </Grid>
                 
