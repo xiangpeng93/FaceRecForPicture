@@ -1,0 +1,8 @@
+
+LIBRARY	"FaceRec"
+
+EXPORTS
+	OpenPicture
+	OpenDir
+	GetGrayPicture
+	GetThresholdPicture
