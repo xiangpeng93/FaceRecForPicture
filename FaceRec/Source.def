@@ -6,3 +6,6 @@ EXPORTS
 	OpenDir
 	GetGrayPicture
 	GetThresholdPicture
+	GetHistImg
+	GetFacePicture
+	GetResultPic

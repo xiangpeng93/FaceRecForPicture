@@ -33,6 +33,15 @@ namespace FaceRecControl
 
         [DllImport("FaceRec.dll", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         static extern int GetThresholdPicture(string srcName, StringBuilder destName);
+
+        [DllImport("FaceRec.dll", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
+        static extern int GetHistImg(string srcName, StringBuilder destName);
+
+        [DllImport("FaceRec.dll", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
+        static extern int GetFacePicture(string srcName, StringBuilder destName);
+
+        [DllImport("FaceRec.dll", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
+        static extern int GetResultPic(string srcName, StringBuilder destName);
         public MainWindow()
         {
             FileName = "";
@@ -61,7 +70,7 @@ namespace FaceRecControl
             DirectoryInfo[] allDir = dir.GetDirectories();
             foreach (DirectoryInfo d in allDir)
             {
-                GetAll(d);
+                //GetAll(d);
             }
             return FileList;
         }
@@ -79,10 +88,24 @@ namespace FaceRecControl
             {
                 if(OpenDir(dirName) == 0)
                 {
-                    getDirFiles(@"C:\Users\dell\Desktop\Pic");
+                    getDirFiles(dirName.ToString());
                     for (int i = 0; i < Flst.Count; i++)
                     {
-                        Console.Write(Flst[i]);
+                        FileName = dirName.ToString() + '\\';
+                        FileName += Flst[i].ToString();
+                        if (FileName.LastIndexOf((".jpg").ToString()) != -1 ||
+                            FileName.LastIndexOf((".png").ToString()) != -1 ||
+                            FileName.LastIndexOf((".gif").ToString()) != -1 ||
+                            FileName.LastIndexOf((".bmp").ToString()) != -1 )
+                        {
+                            OpenFile_Click(sender, e);
+                            ProcessGray_Click(sender, e);
+                            ProcessThreshold_Click(sender, e);
+                            ProcessHist_Click(sender, e);
+                            ProcessFace_Click(sender, e);
+                            ProcessCut_Click(sender, e);
+                            Console.Write(Flst[i]);
+                        }
                     }
                 }          
             }
@@ -133,6 +156,60 @@ namespace FaceRecControl
                     Threshold.Source = new BitmapImage(new Uri(fileName.ToString(), UriKind.Absolute));
                 else
                     MessageBox.Show("请确认已经选择文件！");
+            }
+            catch
+            {
+                MessageBox.Show("请确认已经选择文件！");
+            }
+        }
+
+        private void ProcessHist_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                StringBuilder fileName = new StringBuilder(1024);
+                if (GetHistImg(FileName, fileName) == 0)
+                    Histogram.Source = new BitmapImage(new Uri(fileName.ToString(), UriKind.Absolute));
+                else
+                    MessageBox.Show("请确认已经选择文件！");
+            }
+            catch
+            {
+                MessageBox.Show("请确认已经选择文件！");
+            }
+        }
+
+        private void ProcessFace_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                StringBuilder fileName = new StringBuilder(1024);
+                if (GetFacePicture(FileName, fileName) > 0)
+                    FaceRec.Source = new BitmapImage(new Uri(fileName.ToString(), UriKind.Absolute));
+                else
+                {
+                    MessageBox.Show("未识别到人脸！");
+                     FaceRec.Source = new BitmapImage(new Uri(@"test.png", UriKind.Relative));
+                }
+            }
+            catch
+            {
+                MessageBox.Show("请确认已经选择文件！");
+            }
+        }
+
+        private void ProcessCut_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                StringBuilder fileName = new StringBuilder(1024);
+                if (GetResultPic(FileName, fileName) > 0)
+                    PicDetect.Source = new BitmapImage(new Uri(fileName.ToString(), UriKind.Absolute));
+                else
+                {
+                    MessageBox.Show("未识别到人脸！");
+                    PicDetect.Source = new BitmapImage(new Uri(@"test.png", UriKind.Relative));
+                }
             }
             catch
             {
