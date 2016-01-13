@@ -4,6 +4,16 @@
 #include <vector>
 
 #include <opencv2\highgui\highgui.hpp>
+#include "opencv2/objdetect/objdetect.hpp"
+#include "opencv2/highgui/highgui.hpp"
+#include "opencv2/imgproc/imgproc.hpp"
+
+#include <cctype>
+#include <iostream>
+#include <iterator>
+#include <stdio.h>
+#include <core\types_c.h>
+
 using namespace cv;
 using namespace std;
 vector<char *> g_picArr;
@@ -12,7 +22,7 @@ vector<char *> g_picArr;
 #include <stdlib.h>    
 #include <crtdbg.h>   
 
-int __stdcall _openPicture(char *fileName)
+int __stdcall OpenPicture(char *fileName)
 {
 	OPENFILENAME opfn;
 	
@@ -31,12 +41,13 @@ int __stdcall _openPicture(char *fileName)
 	//设置标志位，检查目录或文件是否存在  
 	opfn.Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST;
 	// 显示对话框让用户选择文件  
-	if (GetOpenFileName(&opfn));
-	strcpy(fileName , strFilename);
+	if(GetOpenFileName(&opfn))
+		memcpy(fileName , strFilename,MAX_PATH);
+	else return -1;
 	return 0;
 }
 
-int __stdcall _openDir(char *dirPath)
+int __stdcall OpenDir(char *dirPath)
 {
 	TCHAR szPathName[MAX_PATH];
 	BROWSEINFO bInfo = { 0 };
@@ -52,83 +63,135 @@ int __stdcall _openDir(char *dirPath)
 		SHGetPathFromIDList(lpDlist, szPathName);
 		strcpy(dirPath, szPathName);
 	}
+	else return -1;
 	return 0;
 }
 
-//只能处理目录:lpPath只能是路径  
-void find(char *lpPath)
+int __stdcall GetGrayPicture(char *srcPicPath, char *desPicPath)
 {
-	char szFind[MAX_PATH];
-	char szFile[MAX_PATH];
-
-	WIN32_FIND_DATA FindFileData;
-
-	strcpy(szFind, lpPath);
-	strcat(szFind, "//*.*");
-
-	HANDLE hFind = ::FindFirstFile(szFind, &FindFileData);
-	if (INVALID_HANDLE_VALUE == hFind)    return;
-	while (TRUE)
+	if (strlen(srcPicPath)>0)
 	{
-		if (FindFileData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
-		{
-			if (FindFileData.cFileName[0] != '.')
-			{
-				strcpy(szFile, lpPath);
-				strcat(szFile, "//");
-				strcat(szFile, FindFileData.cFileName);
-				find(szFile);
-			}
-		}
-		else
-		{
-			string temp_fileName = lpPath;
-			temp_fileName += "\\";
-			temp_fileName += FindFileData.cFileName;
-			char *temp = new char[MAX_PATH];
-			strcpy(temp, temp_fileName.c_str());
-			g_picArr.push_back(temp);
-		}
-		if (!FindNextFile(hFind, &FindFileData))
-			break;
+		cv::Mat image;
+		image = imread(srcPicPath, 1);
+		cv::Mat image_gray;
+		cvtColor(image, image_gray, CV_BGR2GRAY);
+		string destPath = srcPicPath;
+		destPath.erase(destPath.find_last_of('.'), destPath.size());
+
+		strcpy(desPicPath, destPath.c_str());
+		strcat(desPicPath, "face");
+
+		destPath = srcPicPath;
+		destPath.erase(0, destPath.find_last_of('.'));
+		strcat(desPicPath, destPath.c_str());
+		cv::imwrite(desPicPath, image_gray);
 	}
-	FindClose(hFind);
+	else return -1;
+	return 0;
 }
 
-//可同时处理目录和文件:path可以是路径，也可以是文件名，或者文件通配符  
-void _find(string path){
-	//取路径名最后一个"//"之前的部分,包括"//"  
-	string prefix = path.substr(0, path.find_last_of('//') + 1);
+int __stdcall GetThresholdPicture(char *srcPicPath, char *desPicPath)
+{
+	if (strlen(srcPicPath)>0)
+	{
+		cv::Mat image;
+		image = imread(srcPicPath, 1);
+		cv::Mat image_gray;
+		cvtColor(image, image_gray, CV_BGR2GRAY);
+		//局部二值化		
+		int blockSize = 25;
+		int constValue = 10;
+		cv::Mat image_threshold;
+		cv::adaptiveThreshold(image_gray, image_threshold, 255, CV_ADAPTIVE_THRESH_MEAN_C, CV_THRESH_BINARY_INV, blockSize, constValue);
 
-	WIN32_FIND_DATA FindFileData;
-	HANDLE hFind = ::FindFirstFile(path.c_str(), &FindFileData);
-	if (INVALID_HANDLE_VALUE == hFind)
-	{
-		cout << "文件通配符错误" << endl;
-		return;
+		string destPath = srcPicPath;
+		destPath.erase(destPath.find_last_of('.'), destPath.size());
+
+		strcpy(desPicPath, destPath.c_str());
+		strcat(desPicPath, "threshold");
+
+		destPath = srcPicPath;
+		destPath.erase(0, destPath.find_last_of('.'));
+		strcat(desPicPath, destPath.c_str());
+		cv::imwrite(desPicPath, image_threshold);
 	}
-	while (TRUE)
-	{
-		//目录  
-		if (FindFileData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
-		{
-			//不是当前目录，也不是父目录  
-			if (FindFileData.cFileName[0] != '.')
-			{
-				//查找下一级目录  
-				_find(prefix + FindFileData.cFileName + "//" + "*.*");
-			}
-		}
-		//文件  
-		else
-		{
-			cout << FindFileData.cFileName << endl;
-		}
-		if (!FindNextFile(hFind, &FindFileData))
-			break;
-	}
-	FindClose(hFind);
+	else return -1;
+	return 0;
 }
+////只能处理目录:lpPath只能是路径  
+//void find(wchar_t *lpPath)
+//{
+//	wchar_t szFind[MAX_PATH];
+//	wchar_t szFile[MAX_PATH];
+//
+//	WIN32_FIND_DATA FindFileData;
+//
+//	wcscpy(szFind, lpPath);
+//	wcscat(szFind, L"//*.*");
+//
+//	HANDLE hFind = ::FindFirstFile(szFind, &FindFileData);
+//	if (INVALID_HANDLE_VALUE == hFind)    return;
+//	while (TRUE)
+//	{
+//		if (FindFileData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
+//		{
+//			if (FindFileData.cFileName[0] != '.')
+//			{
+//				wcscpy(szFile, lpPath);
+//				wcscat(szFile, L"//");
+//				wcscat(szFile, FindFileData.cFileName);
+//				find(szFile);
+//			}
+//		}
+//		else
+//		{
+//			wstring temp_fileName = lpPath;
+//			temp_fileName += L"\\";
+//			temp_fileName += FindFileData.cFileName;
+//			wchar_t *temp = new wchar_t[MAX_PATH];
+//			wcscpy(temp, temp_fileName.c_str());
+//			g_picArr.push_back(temp);
+//		}
+//		if (!FindNextFile(hFind, &FindFileData))
+//			break;
+//	}
+//	FindClose(hFind);
+//}
+//
+////可同时处理目录和文件:path可以是路径，也可以是文件名，或者文件通配符  
+//void _find(wstring path){
+//	//取路径名最后一个"//"之前的部分,包括"//"  
+//	wstring prefix = path.substr(0, path.find_last_of('//') + 1);
+//
+//	WIN32_FIND_DATA FindFileData;
+//	HANDLE hFind = ::FindFirstFile(path.c_str(), &FindFileData);
+//	if (INVALID_HANDLE_VALUE == hFind)
+//	{
+//		cout << "文件通配符错误" << endl;
+//		return;
+//	}
+//	while (TRUE)
+//	{
+//		//目录  
+//		if (FindFileData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
+//		{
+//			//不是当前目录，也不是父目录  
+//			if (FindFileData.cFileName[0] != '.')
+//			{
+//				//查找下一级目录  
+//				_find(prefix + FindFileData.cFileName + L"//" + L"*.*");
+//			}
+//		}
+//		//文件  
+//		else
+//		{
+//			cout << FindFileData.cFileName << endl;
+//		}
+//		if (!FindNextFile(hFind, &FindFileData))
+//			break;
+//	}
+//	FindClose(hFind);
+//}
 
 inline void EnableMemLeakCheck()
 {
@@ -157,17 +220,6 @@ inline void EnableMemLeakCheck()
 //	return 0;
 //}
 
-#include "opencv2/objdetect/objdetect.hpp"
-#include "opencv2/highgui/highgui.hpp"
-#include "opencv2/imgproc/imgproc.hpp"
-
-#include <cctype>
-#include <iostream>
-#include <iterator>
-#include <stdio.h>
-#include <core\types_c.h>
-using namespace std;
-using namespace cv;
 
 static void help()
 {
@@ -191,93 +243,93 @@ void detectAndDraw(Mat& img, CascadeClassifier& cascade,
 
 string cascadeName = "haarcascade_frontalface_alt.xml";
 
-int main(int argc, const char** argv)
-{
-	CvCapture* capture = 0;
-	Mat frame, frameCopy, image;
-	const string scaleOpt = "--scale=";
-	size_t scaleOptLen = scaleOpt.length();
-	const string cascadeOpt = "--cascade=";
-	size_t cascadeOptLen = cascadeOpt.length();
-	const string nestedCascadeOpt = "--nested-cascade";
-	size_t nestedCascadeOptLen = nestedCascadeOpt.length();
-	const string tryFlipOpt = "--try-flip";
-	size_t tryFlipOptLen = tryFlipOpt.length();
-	string inputName;
-	bool tryflip = false;
-
-	help();
-
-	CascadeClassifier cascade, nestedCascade;
-	double scale = 1;
-	int  i = 0;
-
-	if (!cascade.load(cascadeName))
-	{
-		cerr << "ERROR: Could not load classifier cascade" << endl;
-		help();
-		return -1;
-	}
-
-	image = imread("lena.jpg", 1);
-	cv::Mat image_gray;
-	cvtColor(image, image_gray, CV_BGR2GRAY);
-	cv::imshow("32", image_gray);
-
-	// 局部二值化
-
-	int blockSize = 25;
-	int constValue = 10;
-	cv::Mat local;
-	cv::adaptiveThreshold(image_gray, local, 255, CV_ADAPTIVE_THRESH_MEAN_C, CV_THRESH_BINARY_INV, blockSize, constValue);
-	cv::imshow("322", local);
-
-	if (image.empty()) cout << "Couldn't read lena.jpg" << endl;
-	cvNamedWindow("result", 1);
-
-
-
-	////////////
-	const int channels[1] = { 0 };
-	const int histSize[1] = { 256 };
-	float hranges[2] = { 0, 255 };
-	const float* ranges[1] = { hranges };
-	MatND hist;
-	calcHist(&image_gray, 1, channels, Mat(), hist, 1, histSize, ranges);
-
-	
-	double maxVal = 0;
-	double minVal = 0;
-
-
-	//找到直方图中的最大值和最小值
-	minMaxLoc(hist, &minVal, &maxVal, 0, 0);
-	int histSize1 = hist.rows;
-	Mat histImg(histSize1, histSize1, CV_8U, Scalar(255));
-
-	// 设置最大峰值为图像高度的90%
-	int hpt = static_cast<int>(0.9*histSize1);
-
-	for (int h = 0; h<histSize1; h++)
-	{
-		float binVal = hist.at<float>(h);
-		int intensity = static_cast<int>(binVal*hpt / maxVal);
-		line(histImg, Point(h, histSize1), Point(h, histSize1 - intensity), Scalar::all(0));
-	}
-	cv::imshow("histImg", histImg);
-
-	cout << "In image read" << endl;
-	if (!image.empty())
-	{
-		detectAndDraw(image, cascade, scale, tryflip);
-		waitKey(0);
-	}
-		
-
-	cvDestroyWindow("result");
-
-	return 0;
-}
+//int main(int argc, const char** argv)
+//{
+//	CvCapture* capture = 0;
+//	Mat frame, frameCopy, image;
+//	const string scaleOpt = "--scale=";
+//	size_t scaleOptLen = scaleOpt.length();
+//	const string cascadeOpt = "--cascade=";
+//	size_t cascadeOptLen = cascadeOpt.length();
+//	const string nestedCascadeOpt = "--nested-cascade";
+//	size_t nestedCascadeOptLen = nestedCascadeOpt.length();
+//	const string tryFlipOpt = "--try-flip";
+//	size_t tryFlipOptLen = tryFlipOpt.length();
+//	string inputName;
+//	bool tryflip = false;
+//
+//	help();
+//
+//	CascadeClassifier cascade, nestedCascade;
+//	double scale = 1;
+//	int  i = 0;
+//
+//	if (!cascade.load(cascadeName))
+//	{
+//		cerr << "ERROR: Could not load classifier cascade" << endl;
+//		help();
+//		return -1;
+//	}
+//
+//	image = imread("lena.jpg", 1);
+//	cv::Mat image_gray;
+//	cvtColor(image, image_gray, CV_BGR2GRAY);
+//	cv::imshow("32", image_gray);
+//
+//	// 局部二值化
+//
+//	int blockSize = 25;
+//	int constValue = 10;
+//	cv::Mat local;
+//	cv::adaptiveThreshold(image_gray, local, 255, CV_ADAPTIVE_THRESH_MEAN_C, CV_THRESH_BINARY_INV, blockSize, constValue);
+//	cv::imshow("322", local);
+//
+//	if (image.empty()) cout << "Couldn't read lena.jpg" << endl;
+//	cvNamedWindow("result", 1);
+//
+//
+//
+//	////////////
+//	const int channels[1] = { 0 };
+//	const int histSize[1] = { 256 };
+//	float hranges[2] = { 0, 255 };
+//	const float* ranges[1] = { hranges };
+//	MatND hist;
+//	calcHist(&image_gray, 1, channels, Mat(), hist, 1, histSize, ranges);
+//
+//	
+//	double maxVal = 0;
+//	double minVal = 0;
+//
+//
+//	//找到直方图中的最大值和最小值
+//	minMaxLoc(hist, &minVal, &maxVal, 0, 0);
+//	int histSize1 = hist.rows;
+//	Mat histImg(histSize1, histSize1, CV_8U, Scalar(255));
+//
+//	// 设置最大峰值为图像高度的90%
+//	int hpt = static_cast<int>(0.9*histSize1);
+//
+//	for (int h = 0; h<histSize1; h++)
+//	{
+//		float binVal = hist.at<float>(h);
+//		int intensity = static_cast<int>(binVal*hpt / maxVal);
+//		line(histImg, Point(h, histSize1), Point(h, histSize1 - intensity), Scalar::all(0));
+//	}
+//	cv::imshow("histImg", histImg);
+//
+//	cout << "In image read" << endl;
+//	if (!image.empty())
+//	{
+//		detectAndDraw(image, cascade, scale, tryflip);
+//		waitKey(0);
+//	}
+//		
+//
+//	cvDestroyWindow("result");
+//
+//	return 0;
+//}
 
 void detectAndDraw(Mat& img, CascadeClassifier& cascade,
 	double scale, bool tryflip)
@@ -330,7 +382,6 @@ void detectAndDraw(Mat& img, CascadeClassifier& cascade,
 		vector<Rect> nestedObjects;
 		Point center;
 		Scalar color = colors[i % 8];
-		int radius;
 		double aspect_ratio = (double)r->width / r->height;
 		cv::Mat imageROI = img(cv::Rect(r->x - (r->width) / 10, r->y - (r->height) / 10, r->width + (r->width) / 5, r->height + (r->height) / 5));
 		cv::imshow("123", imageROI);
@@ -342,4 +393,22 @@ void detectAndDraw(Mat& img, CascadeClassifier& cascade,
 				
 	}
 	cv::imshow("result", img);
+}
+
+BOOL APIENTRY DllMain(HMODULE hModule,
+	DWORD  ul_reason_for_call,
+	LPVOID lpReserved
+	)
+{
+	switch (ul_reason_for_call)
+	{
+	case DLL_PROCESS_ATTACH:
+		break;
+	case DLL_THREAD_ATTACH:
+	case DLL_THREAD_DETACH:
+		break;
+	case DLL_PROCESS_DETACH:
+		break;
+	}
+	return TRUE;
 }
